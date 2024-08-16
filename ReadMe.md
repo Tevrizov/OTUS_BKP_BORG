@@ -17,9 +17,11 @@
 
 
 
+
 ### 2.Пишем playbook
 
 [playbook](playbook.yml)
+
 
 
 
@@ -28,8 +30,10 @@ __Устанавливаем на client и backup сервере borgbackup__
 
 
 
+
 __На сервере backup создаем пользователя и каталог /var/backup и назначаем на него права пользователя borg__  
 ![текст](screenshots/create_user.png)  
+
 
 
 
@@ -42,9 +46,12 @@ __На клиенте создаем и копируем ssh key__
 ![текст](screenshots/ssh_key.png)  
 
 
+
+
 __Инициализируем репозиторий borg на backup сервере с client сервера / Запускаем для проверки создания бэкапа__
 ![текст](screenshots/borg.png) 
 ![текст](screenshots/task_borg.png)  
+
 
 
 
@@ -53,13 +60,11 @@ __Автоматизируем создание бэкапов с помощью
 ![текст](screenshots/task_service.png) 
 
 
+
+
 __Проверяем работу таймера__
 
 ![текст](screenshots/list_timer.png) 
 ![текст](screenshots/task_timer.png) 
 
 
-
-```php
-docker commit 1e6229dd21rd nginxnew:v1.2
-```
