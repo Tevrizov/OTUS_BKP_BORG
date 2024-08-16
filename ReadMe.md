@@ -17,7 +17,7 @@
 
 
 
-### 2.Пишем plaubook
+### 2.Пишем playbook
 
 [playbook](playbook.yml)
 
@@ -42,6 +42,9 @@ __На клиенте создаем и копируем ssh key__
 ![текст](screenshots/ssh_key.png)  
 
 
+__Инициализируем репозиторий borg на backup сервере с client сервера / Запускаем для проверки создания бэкапа__
+![текст](screenshots/borg.png) 
+![текст](screenshots/task_borg.png)  
 
 
 
