@@ -1,0 +1,191 @@
+---
+#-------- Настроить удаленный бекап каталога /etc c сервера client при помощи borgbackup -------------
+
+- hosts: all
+  become: true
+
+
+  tasks:
+
+#----- Устанавливаем на client и backup сервере borgbackup ---- 
+  - name: install packages 
+    apt:
+      update_cache: yes
+      name: "{{ packages }}"
+      state: present
+    vars:
+      packages:
+      - borgbackup
+      - mc
+      - sshpass
+ 
+  - name: print /etc/hostname
+    shell:
+        cat /etc/hostname
+    register: results
+  - debug:
+     var: results.stdout
+
+
+###################################################################################
+#----------------------------------------------------------------------------------
+#--- SERVER
+- hosts: server
+  become: true
+
+  handlers:
+   - name: restart sshd
+     service:
+       name: sshd
+       state: restarted
+
+
+
+  tasks:
+
+  - name: print /etc/hostname
+    shell:
+        cat /etc/hostname
+    register: results
+  - debug:
+     var: results.stdout
+
+#----- На сервере backup создаем пользователя и каталог /var/backup 
+  - name: Create a user 'borg' 
+    ansible.builtin.user:
+      name: borg
+      create_home: yes
+      password: "{{ '1234' | password_hash('sha512') }}"
+
+  - name: Create directory
+    ansible.builtin.file:
+      path: /var/backup 
+      state: directory
+      mode: '0755'
+      owner: borg
+      group: borg
+  
+  - name: Create directory .ssh
+    ansible.builtin.file:
+      path: /home/borg/.ssh
+      state: directory
+      mode: '0700'
+      owner: borg
+      group: borg
+
+#создаем ssh key и разрешаем подключаться по ssh для копирования ключа
+  - name: Create file authorized_keys
+    ansible.builtin.file:
+      path: /home/borg/.ssh/authorized_keys
+      state: touch
+      mode: '0600'
+      owner: borg
+      group: borg
+
+  - name: Configure sshd
+    lineinfile:
+      path: "/etc/ssh/sshd_config.d/60-cloudimg-settings.conf"
+      regex: "^(#)?{{item.key}}"
+      line: "{{item.key}} {{item.value}}"
+      state: present
+    loop:
+      - { key: "PermitRootLogin", value: "yes" }
+      - { key: "PasswordAuthentication", value: "yes" } 
+    notify:
+      - restart sshd
+
+
+
+###################################################################################
+#----------------------------------------------------------------------------------
+#--- CLIENT
+- hosts: client
+  become: true
+
+  vars:
+    repo: borg@192.168.50.10:/var/backup/
+    conf_file_service: /etc/systemd/system/borg-backup.service
+    conf_file_timer: /etc/systemd/system//borg-backup.timer
+
+
+  tasks:
+
+  - name: print /etc/hostname
+    shell:
+        cat /etc/hostname
+    register: results
+  - debug:
+     var: results.stdout
+
+
+#создаем и копируем ssh key
+  - name: Generate ssh-key-gen
+    command : ssh-keygen -q -t rsa  -f /root/.ssh/id_rsa  -N ''
+  
+  - name: ssh-copy-id to server
+    shell: |
+      sshpass -p 1234 ssh-copy-id -i /root/.ssh/id_rsa.pub -o StrictHostKeyChecking=no borg@192.168.50.10
+
+
+ # borg init
+  - name: borg init
+    shell:
+        borg init -e none borg@192.168.50.10:/var/backup/
+
+  - name: borg create
+    shell:
+        borg create --stats --list borg@192.168.50.10:/var/backup/::"etc-{now:%Y-%m-%d_%H:%M:%S}" /etc
+
+  - name: borg list
+    shell:
+        borg list borg@192.168.50.10:/var/backup/
+    register: borg_results
+  - debug:
+     var: borg_results.stdout
+
+
+#Создаем сервис и таймер в каталоге /etc/systemd/system/ 
+#Автоматизируем создание бэкапов с помощью systemd
+  - name: borg-backup.timer template
+    template:
+      src: borg-backup.timer.j2
+      dest: "{{ conf_file_timer }}"
+      mode: '0644'
+    
+  - name: borg-backup.servise template
+    template:
+      src: borg-backup.service.j2
+      dest: "{{ conf_file_service }}"
+      mode: '0644'
+
+# Включаем и запускаем службу таймера
+  - name: systemctl borg start
+    shell: |
+      systemctl daemon-reload
+      systemctl enable borg-backup.timer 
+      systemctl start borg-backup.timer
+
+  - name: systemctl status borg-backup.timer
+    shell:
+        systemctl status borg-backup.timer
+    register: borg_results_status
+  - debug:
+     var: borg_results_status.stdout_lines
+
+
+# Проверяем работу таймера
+  - name: systemctl list-timers --all
+    shell:
+        systemctl list-timers --all
+    register: list_timer_status
+  - debug:
+     var: list_timer_status.stdout_lines
+
+
+
+
+
+
+
+
+
