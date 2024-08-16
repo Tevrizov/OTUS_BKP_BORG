@@ -54,6 +54,7 @@ __Автоматизируем создание бэкапов с помощью
 
 
 __Проверяем работу таймера__
+
 ![текст](screenshots/list_timer.png) 
 ![текст](screenshots/task_timer.png) 
 
